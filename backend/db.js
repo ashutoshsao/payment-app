@@ -4,13 +4,13 @@ mongoose.connect(process.env.MONGO_URL);
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true },
-  password: { type: String, required: true },
+  password_hash: { type: String, required: true },
   firstName: { type: String, required: true },
   lastName: { type: String, required: true }
 });
 
 // Method to generate a hash from plain text 
-userSchema.methods.createHash = async function (plainTextPassword) {
+userSchema.statics.createHash = async function (plainTextPassword) {
   // Hashing user's salt and password with 10 iterations,
   const saltRounds = 10;
   // First method to generate a salt and then create hash 
@@ -19,7 +19,7 @@ userSchema.methods.createHash = async function (plainTextPassword) {
 };
 
 userSchema.methods.validatePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password_hash);
+  return bcrypt.compare(candidatePassword, this.password_hash);
 };
 
 const User = mongoose.model('User', userSchema);

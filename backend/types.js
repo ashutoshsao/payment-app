@@ -1,5 +1,5 @@
 // schemas/user.js
-const { z } = require("zod");
+const { z, number } = require("zod");
 
 const baseUserSchema = z.object({
     username: z.string().email(),
@@ -17,7 +17,13 @@ const signinSchema = baseUserSchema.pick({
     password: true
 });
 
+const transactionSchema = z.object({
+    to: z.string(),
+    amount: z.coerce.string()
+})
+
 module.exports = {
     signupSchema,
-    signinSchema
+    signinSchema,
+    transactionSchema
 };

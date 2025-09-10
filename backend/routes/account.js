@@ -1,6 +1,8 @@
 const { Router } = require("express");
 const { authMiddleware } = require("../middleware");
 const { Account } = require("../db");
+const { default: mongoose } = require("mongoose");
+const { transactionSchema } = require("../types");
 const router = Router();
 
 router.get("/balance", authMiddleware, async (req, res) => {
@@ -20,8 +22,13 @@ router.post("/transfer", authMiddleware, async (req, res) => {
     session.startTransaction();
 
     try {
-        const { amount, to } = req.body;
-
+        const { to, amount } = req.body;
+        const isValid = transactionSchema.safeParse({ to, amount });
+        if (!isValid.success) {
+            return res.status(411).json({
+                message: "wrong inputs"
+            })
+        }
         const account = await Account.findOne({
             userId: req.userId
         }).session(session);
@@ -73,4 +80,4 @@ router.post("/transfer", authMiddleware, async (req, res) => {
 });
 
 
-module.exports = { router };
+module.exports = router;

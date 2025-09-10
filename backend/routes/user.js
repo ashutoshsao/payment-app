@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const jwt = require("jasonwebtoken");
+const jwt = require("jsonwebtoken");
 const { User, Account } = require("../db");
 const { JWT_SECRET } = require("../config");
 const { signupSchema, signinSchema } = require("../types");
@@ -22,13 +22,13 @@ router.post("/signup", async (req, res) => {
         { username: body.username }
     );
 
-    if (existingUser._id) {
+    if (existingUser) {
         return res.status(411).json({
             message: "Email already taken"
         })
     }
 
-    const password_hash = await user.createHash(body.password);
+    const password_hash = await User.createHash(body.password);
 
     const user = await User.create({
         username: body.username,
@@ -44,7 +44,7 @@ router.post("/signup", async (req, res) => {
     })
 
     const token = jwt.sign({
-        userId: dbUser._id
+        userId,
     }, JWT_SECRET);
 
     res.json({
@@ -91,23 +91,30 @@ router.post("/signin", async (req, res) => {
 });
 
 
-const updateBody = zod.object({
-    password: zod.string().optional(),
-    firstName: zod.string().optional(),
-    lastName: zod.string().optional(),
+const updateBody = z.object({
+    password: z.string().optional(),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
 })
 
 router.put("/", authMiddleware, async (req, res) => {
     const { success } = updateBody.safeParse(req.body);
     if (!success) {
-        res.status(411).json({
+        return res.status(411).json({
             message: "Error while updating information"
         })
     }
 
+    const updateData = { ...req.body };
+
+    if (updateData.password) {
+        updateData.password_hash = await User.createHash(updateData.password);
+        delete updateData.password; // don't save plain password
+    }
+
     await User.updateOne({
         _id: req.userId
-    }, req.body);
+    }, updateData);
 
     res.json({
         message: "Updated successfully"
@@ -117,7 +124,7 @@ router.put("/", authMiddleware, async (req, res) => {
 router.get("/bulk", authMiddleware, async (req, res) => {
     const filter = req.query.filter || "";
 
-    const users = await find({
+    const users = await User.find({
         $or: [{
             firstName: {
                 "$regex": filter,
@@ -130,13 +137,12 @@ router.get("/bulk", authMiddleware, async (req, res) => {
             }
         }]
     })
-
     res.json({
         users: users.map((user) => ({
+            _id: user._id,
             username: user.username,
             firstName: user.firstName,
-            lastName: user.lastName,
-            userId: user._id
+            lastName: user.lastName
         }))
     })
 })
